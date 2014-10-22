@@ -1,10 +1,11 @@
 package httpserver
 
 import (
-	"configuration"
 	"net/http"
+	"strconv"
 )
 
-func StartServer() {
-
+func Start(port int) {
+	address := "localhost:" + strconv.Itoa(port)
+	http.ListenAndServe(address, nil)
 }

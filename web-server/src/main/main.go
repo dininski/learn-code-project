@@ -1,12 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"router"
+	"application"
 )
 
 func main() {
-	http.Handle("/string", a)
-	http.ListenAndServe("localhost:4000", nil)
+	application.Start()
 }

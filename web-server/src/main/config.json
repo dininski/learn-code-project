@@ -1,3 +1,4 @@
 {
-	"staticFileDir": "./"
+	"StaticFileDir": "./",
+	"Port": 4000
 }
