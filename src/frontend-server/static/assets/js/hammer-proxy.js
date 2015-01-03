@@ -1,4 +1,4 @@
-'use strict';ʖ̫
+'use strict';
 
 define(['hammerLib'], function (Hammer) {
     window.Hammer = Hammer;
