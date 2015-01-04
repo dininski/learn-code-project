@@ -12,7 +12,7 @@ var SubmissionSchema = new Schema({
         type: Number,
         index: true
     },
-    stdin: Buffer,
+    stdin: String,
     user_id: String,
     code: String,
     language_id: String,

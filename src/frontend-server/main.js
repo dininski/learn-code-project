@@ -1,8 +1,17 @@
 'use strict';
 
-var express = require('express');
-var app = express();
+var express = require('express'),
+    path = require('path'),
+    architect = require('architect');
 
-app.use(express.static(__dirname + '/static'));
+var configPath = path.join(__dirname, 'modules-config.js');
+var config = architect.loadConfig(configPath);
 
-app.listen(8080);
+architect.createApp(config, function createArchitectAppDlg(err, app) {
+    if (err) {
+        console.log(err.stack);
+    } else {
+        app.services.httpServer.app.use(express.static(__dirname + '/static'));
+        app.services.httpServer.start(8080);
+    }
+});

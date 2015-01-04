@@ -1,69 +1,58 @@
 'use strict';
 
-var async = require('async');
+var data = require('../../../data/main');
 
 var Routing = function () {
-    this._codeExecutionService = {};
     this._httpServer = {};
-    this.requestProcessor = {};
-    this.responseProcessor = {};
 };
 
 Routing.prototype = {
-    init: function (httpServer, codeExecutionService, requestProcessor, responseProcessor) {
+    init: function (httpServer) {
         this._httpServer = httpServer;
-        this._codeExecutionService = codeExecutionService;
-        this.requestProcessor = requestProcessor;
-        this.responseProcessor = responseProcessor;
     },
 
     registerRoutes: function () {
         this._httpServer.registerRoute({
             method: 'post',
-            path: '/executors/:executorId(\\d+)/execute',
-            handler: this.handleCodeExecuteRequest.bind(this)
+            path: '/submissions',
+            handler: this.handleSubmissionPostRequest.bind(this)
         });
 
-        //this._httpServer.registerRoute({
-        //    method: 'get',
-        //    path: '/executors',
-        //    handler: this.handleGetExecutorsRequest.bind(this)
-        //});
+        this._httpServer.registerRoute({
+            method: 'get',
+            path: '/submissions/:submissionId',
+            handler: this.handleSubmissionGetRequest.bind(this)
+        });
     },
 
-    handleCodeExecuteRequest: function (req, res, next) {
-        var self = this;
-        async.waterfall([
-            function processRequestDlg(callback) {
-                self.requestProcessor.processCodeRequest(req, res, callback);
-            },
+    handleSubmissionPostRequest: function (req, res, next) {
+        var Submission = data.get('Submission');
 
-            function executeCodeDlg(codeExecutionRequest, callback) {
-                self._codeExecutionService.execute(codeExecutionRequest, callback);
-            },
+        var submission = new Submission({
+            stdin: req.body.stdin,
+            code: req.body.code,
+            language_id: req.body.language_id
+        });
 
-            function onAllChecksRunDlg(result, callback) {
-                callback(null, result);
+        submission.save(function (err) {
+            if (err) {
+                return next(err);
             }
-        ], function onRequestHandledDlg(err, result) {
-            self._httpServer.respondJSON(req, res, result);
+
+            res.send(submission._id);
         });
     },
 
-    //handleGetExecutorsRequest: function (req, res, next) {
-    //    var executors = [];
-    //    var executorsInConfig = Config.ExecutionConfig.Executors;
-    //    var names = Object.getOwnPropertyNames(executorsInConfig);
-    //
-    //    for (var i = 0; i < names.length; i++) {
-    //        executors.push({
-    //            name: names[i],
-    //            id: Constants.Languages[names[i]]
-    //        });
-    //    }
-    //
-    //    this._httpServer.respondJSON(req, res, executors);
-    //}
+    handleSubmissionGetRequest: function (req, res, next) {
+        var Submission = data.get('Submission');
+        Submission.findOne({_id: req.params.submissionId}, function (err, submission) {
+            if (err) {
+                return next(err);
+            }
+
+            res.json(submission);
+        });
+    }
 };
 
 module.exports = Routing;

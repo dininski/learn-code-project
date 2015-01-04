@@ -46,7 +46,7 @@ HttpServer.prototype = {
         var action = this._resolveAction(routeOptions.method);
 
         var args = [];
-        args.push(routeOptions.path);
+        args.push('/api' + routeOptions.path);
 
         if (routeOptions.middleware) {
             args.push(routeOptions);

@@ -2,6 +2,8 @@
   "name": "frontend-server",
   "version": "0.0.1",
   "dependencies": {
-    "express": "4.10.6"
+    "express": "4.10.6",
+    "architect": "0.1.11",
+    "body-parser": "1.10.0"
   }
 }

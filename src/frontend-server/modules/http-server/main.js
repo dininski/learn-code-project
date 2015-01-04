@@ -5,6 +5,6 @@ module.exports = function setup(options, imports, register) {
     var httpServer = new HttpServer(options.httpConfig);
 
     register(null, {
-        HttpServer: httpServer
+        httpServer: httpServer
     });
 };
