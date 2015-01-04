@@ -3,6 +3,7 @@
 var async = require('async');
 var SimpleStream = require('./simple-stream');
 var Container = require('./container');
+var data = require('../../data/main');
 
 var Executor = function (logger) {
     this._logger = logger;
@@ -10,8 +11,8 @@ var Executor = function (logger) {
     this.runOptions = {};
     this.container = {};
     this.timeLimit = 0;
-    this.stdOut = null;
-    this.stdErr = null;
+    this.stdout = null;
+    this.stderr = null;
     this.codeExecutionRequest = null;
 };
 
@@ -20,55 +21,78 @@ Executor.prototype = {
         this.createOptions = options;
     },
 
-    initializeExecution: function (codeExecutionRequest, done) {
+    beginExecution: function (done) {
+        this.container.start(this.runOptions, function (err, container) {
+            return done(err);
+        });
+    },
+
+    execute: function (codeExecutionRequest, done) {
+        var self = this;
+        this.stdout = new SimpleStream();
+        this.stderr = new SimpleStream();
+
         this.codeExecutionRequest = codeExecutionRequest;
         this.timeLimit = this.codeExecutionRequest.timeLimit;
 
         var binds = [];
-        binds.push(this.codeExecutionRequest.executionFolder + ":/executionFolder");
+        binds.push(this.codeExecutionRequest.executionFolder + ':/executionFolder');
 
         this.runOptions = {
             Binds: binds
         };
 
         this.container = new Container(this.createOptions);
-        this.container.init(done);
-    },
 
-    beginExecution: function (done) {
-        this.container.start(this.runOptions, done);
-    },
+        var submission = codeExecutionRequest.submission;
 
-    execute: function (done) {
-        var self = this;
-        this.stdOut = new SimpleStream();
-        this.stdErr = new SimpleStream();
+        async.waterfall([
+                function (callback) {
+                    self.container.init(callback);
+                },
 
-        this.getStream(function (err, stream) {
-            if (err) {
-                return done(err);
-            }
+                function (callback) {
+                    self.getStream(callback);
+                },
 
-            self.processStream(stream, '1\n2\n', function () {
+                function (stream, callback) {
+                    if (submission.stdin) {
+                        return callback(null, stream, submission.stdin);
+                    } else if (submission.task_id) {
+                        var Task = data.get('Task');
+                        Task.findOne({_id: submission.task_id}, function (err, task) {
+                            if (err) {
+                                return callback(err);
+                            }
 
-            });
-
-            self.beginExecution(function (err, container) {
-                self.onExecutionFinished(function onExecuteErrorDlg(err) {
-                    if (err) {
-                        self._logger.error(err);
-                        return done(err);
+                            return callback(null, stream, task.stdin);
+                        });
+                    } else {
+                        return callback('No stdin or task found!');
                     }
+                },
 
-                    var result = {
-                        stdOut: self.stdOut.value,
-                        stdErr: self.stdErr.value
-                    };
+                function (stream, stdin, callback) {
+                    self.processStream(stream, stdin, callback);
+                },
 
-                    return done(null, result);
-                });
+                self.beginExecution.bind(self),
+                self.onExecutionFinished.bind(self)
+            ],
+
+            function (err) {
+                if (err) {
+                    self._logger.error(err);
+                    return done(err);
+                }
+
+                var result = {
+                    stdout: self.stdout.value,
+                    stderr: self.stderr.value
+                };
+
+                return done(null, result);
             });
-        });
     },
 
     getStream: function (done) {
@@ -77,22 +101,46 @@ Executor.prototype = {
 
     processStream: function (stream, stdin, done) {
         var self = this;
-        this.container.demuxStream(stream, this.stdOut, this.stdErr);
-        stream.write(stdin, function writeStdinDlg() {
+        this.container.demuxStream(stream, this.stdout, this.stderr);
+        stream.write(stdin, function writeStdinDlg(err) {
+            if (err) {
+                return done(err);
+            }
+
             self._logger.info('Wrote stdin');
             done();
         });
     },
 
-    onExecutionFinished: function (callback) {
+    onExecutionFinished: function (done) {
         var self = this;
 
-        this.container.wait(function (err, data) {
-            self.container.inspect(function (err, data) {
-                self._executionStart = new Date(data.State.StartedAt);
-                self._executionEnd = new Date(data.State.FinishedAt);
-                callback();
-            });
+        async.waterfall([
+            function (callback) {
+                self.container.wait(callback);
+            },
+
+            function (data, callback) {
+                self.container.inspect(callback);
+            },
+
+            function (containerInfo, callback) {
+                self.cleanup(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+
+                    callback(null, containerInfo);
+                });
+            }
+        ], function (err, containerInfo) {
+            if (err) {
+                return done(err);
+            }
+
+            self._executionStart = new Date(containerInfo.State.StartedAt);
+            self._executionEnd = new Date(containerInfo.State.FinishedAt);
+            done();
         });
     },
 
