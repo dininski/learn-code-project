@@ -9,8 +9,8 @@ var validators = require('../validators');
 var compactor = require('../compactor');
 
 var CheckResultSchema = new Schema({
-    stdOut: Buffer,
-    stdErr: Buffer,
+    stdOut: String,
+    stdErr: String,
     executionResult: Number,
     isCorrect: Boolean,
     check_id: ObjectId,
@@ -30,6 +30,6 @@ CheckResultSchema
     .path('executionResult')
     .validate(validators.rangeValidator(executionResults), 'Invalid execution result!');
 
-compactor.compact(CheckResultSchema, ['stdOut', 'stdErr']);
+//compactor.compact(CheckResultSchema, ['stdOut', 'stdErr']);
 
 mongoose.model('CheckResult', CheckResultSchema);
