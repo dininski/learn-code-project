@@ -45,13 +45,24 @@ Routing.prototype = {
 
     handleSubmissionGetRequest: function (req, res, next) {
         var Submission = data.get('Submission');
-        Submission.findOne({_id: req.params.submissionId}, function (err, submission) {
-            if (err) {
-                return next(err);
-            }
+        var submissionId = req.params.submissionId;
+        if(submissionId) {
+            Submission.findOne({_id: req.params.submissionId}, function (err, submission) {
+                if (err) {
+                    return next(err);
+                }
 
-            res.json(submission);
-        });
+                res.json(submission);
+            });
+        } else {
+            Submission.find({}, function(err, submissions) {
+                if (err) {
+                    return next(err);
+                }
+                
+                res.json(submissions);
+            })
+        }
     }
 };
 
